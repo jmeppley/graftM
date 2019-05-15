@@ -1,5 +1,6 @@
 import logging
 import subprocess
+import tempfile
 from signal import signal, SIGPIPE, SIG_DFL
 import os
 import itertools
@@ -118,11 +119,6 @@ class UnpackRawReads:
             if sequence_file_path.endswith(ext): return ext
         raise self.UnexpectedFileFormatException("Unable to guess file format of sequence file: %s" % sequence_file_path)
 
-    def get_interleaved_cmd(self):
-        """ return cmd snippet to make sure interleaved reads have unique
-        names """
-        return r""" | perl -pe 'if (m/^>/) {$i++; if ($i % 2 == 1) { if (m/^(\S+)(?<![-:\/]1)(\s+\S.*)?(\s*)$/) { $_ = "$1/1$2$3" }} elsif ($i % 2 == 0) { if (m/^(\S+)(?<![-:\/]2)(\s+\S.*)?(\s*)$/) { $_ = "$1/2$2$3" }}}'"""
-
     def command_line(self):
         '''Return a string to open read files with'''
         file_format=self.guess_sequence_input_file_format(self.read_file)
@@ -142,3 +138,18 @@ class UnpackRawReads:
 
     def get_file_as_process(self):
         return "<(%s)" % (self.command_line())
+
+    def get_interleaved_cmd(self):
+        """ return cmd snippet to make sure interleaved reads have unique
+        names """
+        # this perl mess adds /1 and /2 if the read names don't already
+        # have them
+        return r""" | perl -pe 'if (m/^>/) {$i++; if ($i % 2 == 1) { if (m/^(\S+)(?<![-:\/]1)(\s+\S.*)?(\s*)$/) { $_ = "$1/1$2$3" }} elsif ($i % 2 == 0) { if (m/^(\S+)(?<![-:\/]2)(\s+\S.*)?(\s*)$/) { $_ = "$1/2$2$3" }}}'"""
+
+    def de_interleave(self):
+        """ split file into two fasta files """
+        with tempfile.NamedTemporaryFile('wt', suffix='R1.fasta',
+                                         delete=False) as r1:
+            endswith tempfile.NamedTemporaryFile('wt', suffix='R2.fasta',
+                                                 delete=False) as r2:
+               # todo 

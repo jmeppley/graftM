@@ -326,10 +326,16 @@ class Run:
         # For each pair (or single file passed to GraftM)
         logging.debug('Working with %i file(s)' % len(self.sequence_pair_list))
         for pair in self.sequence_pair_list:
+
+            # De-interleave reads
+            if len(pair) == 1:
+                pair = UnpackRawReads(pair[0],
+                                      self.args.input_sequence_type,
+                                      INTERLEAVED).de_interleave()
+
             # Guess the sequence file type, if not already specified to GraftM
             unpack = UnpackRawReads(pair[0],
-                                    self.args.input_sequence_type,
-                                    INTERLEAVED)
+                                    self.args.input_sequence_type)
 
             # Set the basename, and make an entry to the summary table.
             base = unpack.basename()
@@ -344,8 +350,7 @@ class Run:
             # for each of the paired end read files
             for read_file in pair:
                 unpack = UnpackRawReads(read_file,
-                                        self.args.input_sequence_type,
-                                        INTERLEAVED)
+                                        self.args.input_sequence_type)
                 if not os.path.isfile(read_file): # Check file exists
                     logging.info('%s does not exist! Skipping this file..' % read_file)
                     continue
